@@ -16,8 +16,8 @@ const { pageTitle } = Astro.props;
   <div class="container">
     <header>
       <!-- Sample inline SVG -->
-      <div class="logo">
-        <Image src={TitleImage} alt="" width="480px" />
+      <div>
+        <Image src={TitleImage} alt="" class="logo-image" />
       </div>
       <nav>
         <ul class="nav-links">
@@ -111,6 +111,10 @@ footer {
   padding: 1rem 0;
 }
 
+.logo-image {
+  width: 480px;
+}
+
 /* Responsive padding on small screens */
 @media (max-width: 600px) {
   .container {
@@ -120,6 +124,10 @@ footer {
   .nav-links {
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .logo-image {
+    width: 320px;
   }
 }
 

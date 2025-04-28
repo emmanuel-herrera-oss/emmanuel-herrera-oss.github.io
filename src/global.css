@@ -7,3 +7,7 @@ a:hover {
 a:visited {
     color: #e5b890;
 }
+
+.blog-post {
+    max-width: 90vw;
+}
