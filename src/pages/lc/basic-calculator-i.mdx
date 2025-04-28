@@ -1,0 +1,136 @@
+---
+topics: ["go", "leetcode"]
+export pageTitle: "Basic Calculator"
+description: "Solving Leetcode problem #244 in Go"
+pubDate: 2025-04-26
+---
+import "global.css"
+import Layout from 'layouts/Layout.astro';
+
+<Layout>
+# Basic Calculator
+
+This problem is about evaluating a simple expression like 2 - (3 + 5). To start off, I wrote code to handle everything except parantheses. When a digit is encountered, it's 
+appended to the string builder. When an operator or the end of the input is encountered:
+1. Convert the string builder to an integer
+2. Apply the previous operator (`op`) on the number gotten above and `prev`. 
+3. Update `prev` with the result gotten above
+4. Reset the string builder to start parsing the next number
+5. Store the current operator in `op`
+
+
+```go
+func calculate(s string) int {
+	var sb strings.Builder
+
+	s = strings.ReplaceAll(s, " ", "")
+	prev := 0
+	op := '+'
+
+	for _, v := range s {
+		if unicode.IsDigit(v) {
+			sb.WriteRune(v)
+		} else {
+			b, _ := strconv.Atoi(sb.String())
+			prev = operate(prev, b, op)
+			sb.Reset()
+			op = v
+		}
+	}
+	finalOperand, _ := strconv.Atoi(sb.String())
+	return operate(prev, finalOperand, op)
+}
+func operate(a int, b int, op rune) int {
+	if op == '+' {
+		return a + b
+	}
+	if op == '-' {
+		return a - b
+	}
+	panic("Unsupported operation")
+}
+```
+
+The next step was to handle paranthesis. I approached this by going through an example and noting what data I'd need in order to perform the operations in the correct order. For example:
+`5 + 2 - ((2 + 3) - 5)`
+When we encounter the first opening paranthesis, `prev` is 7 and `op` is `-`. We want to evaluate what is in the paranthesis and then subtract it from 7. To hold this kind of information,
+I created a struct named `OpData`. Everytime an opening paranthesis is encountered, the current values of `prev` and `op` are pushed onto a stack so that they can be retrieved after the 
+expression in parantheses is evaluated. Also, when an opening paranthesis is encountered, `op` is set to `+` and `prev` to `0` so that if the next character is also an opening paranthesis
+`{'+', 0}` will be pushed onto the stack and have no effect when it's popped and evaluated. If the next character is not an opening paranthesis, then evaluation continues as before until
+a closing paranthesis is encountered. Once that happens, the stack is popped and combined with the result of the expression in the current set of parantheses.
+
+```go
+func calculate(s string) int {
+	var stack Stack
+	var sb strings.Builder
+
+	s = strings.ReplaceAll(s, " ", "")
+	prev := 0
+	op := '+'
+
+	for _, v := range s {
+		if unicode.IsDigit(v) {
+			sb.WriteRune(v)
+		} else if v == '(' {
+			stack.Push(OpData{
+				Prev: prev,
+				Op:   op,
+			})
+			op = '+'
+			prev = 0
+			sb.Reset()
+		} else if v == ')' {
+			if sb.Len() > 0 {
+				b, _ := strconv.Atoi(sb.String())
+				prev = operate(prev, b, op)
+				sb.Reset()
+			}
+			frame := stack.Pop().(OpData)
+			prev = operate(frame.Prev, prev, frame.Op)
+
+		} else {
+			b, _ := strconv.Atoi(sb.String())
+			prev = operate(prev, b, op)
+			sb.Reset()
+			op = v
+		}
+	}
+	finalOperand, _ := strconv.Atoi(sb.String())
+	return operate(prev, finalOperand, op)
+}
+
+func operate(a int, b int, op rune) int {
+	if op == '+' {
+		return a + b
+	}
+	if op == '-' {
+		return a - b
+	}
+	panic("Unsupported operation")
+}
+
+type OpData struct {
+	Prev int
+	Op   rune
+}
+
+type Stack struct {
+	items []interface{}
+}
+
+func (s *Stack) Push(item interface{}) {
+	s.items = append(s.items, item)
+}
+
+func (s *Stack) Pop() interface{} {
+	if len(s.items) == 0 {
+		return nil
+	}
+	top := s.items[len(s.items)-1]
+	s.items = s.items[:len(s.items)-1]
+	return top
+}
+```
+
+
+</Layout>

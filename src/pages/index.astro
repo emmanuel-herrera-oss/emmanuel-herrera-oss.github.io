@@ -1,0 +1,37 @@
+---
+import "global.css"
+import Layout from '../layouts/Layout.astro';
+import { Image } from "astro:assets";
+import UserImage from "../assets/user.png"
+---
+
+<Layout>
+	<div class="blog-summary">
+		<div>
+			<h3 onclick="window.location.href = '/lc/basic-calculator-i'">Leetcode - 224. Basic Calculator (Go)</h3>
+			<p>My solution for <a href="https://leetcode.com/problems/basic-calculator/description/" target="_blank">Basic Calculator</a> implemented in Go.</p>
+			<p class="published">April 26, 2025</p>
+		</div>
+		<div>
+			<!-- TODO: Images? -->
+		</div>
+	</div>
+</Layout>
+
+<style>
+	.blog-summary {
+		display: flex;
+		justify-content: space-around;
+		border: 2px solid black;
+		border-radius: 20px;
+	}
+	.published {
+		font-weight: 200;
+		font-size: 0.7rem;
+		margin-top: 8px;
+	}
+	h3 {
+		text-decoration: underline;
+		cursor: pointer;
+	}
+</style>

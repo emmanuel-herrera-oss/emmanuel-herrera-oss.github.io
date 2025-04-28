@@ -1,0 +1,9 @@
+.nav-link {
+    font-weight: bold;
+}
+a:hover {
+    color: #FECCA0;
+}
+a:visited {
+    color: #e5b890;
+}

@@ -1,0 +1,65 @@
+---
+import { Image } from "astro:assets";
+import UserImage from "../assets/user.png"
+import TitleImage from "../assets/manny_codes.svg"
+import "global.css"
+
+const { pageTitle } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/png" href="/user.png" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Manny Codes - {pageTitle ?? 'Index'}</title>
+	</head>
+	<body>
+		<div class="container">
+			<div class="header">
+			  <Image width="120" src={UserImage} alt=""/>
+			  <Image src={TitleImage} alt=""/>
+			</div>
+			<div class="nav">
+				<a class="nav-link" href="/">Home</a>
+				<a class="nav-link" href="/about">About</a>
+			</div>
+			<div style="width: 100%">
+				<slot/>
+			</div>
+	</body>
+</html>
+
+<style>
+	body {
+		margin: 0;
+		width: 100%;
+		height: 100%;
+		background-color: #535e77;
+		display: flex;
+		justify-content: center;
+		color: #FECCA0;
+		font-family: Roboto, 'Open Sans', 'Helvetica Neue', sans-serif;
+	}
+	.container {
+    	display: flex;
+		flex-direction: column;
+		max-width: 960px;
+		width: 85%;
+		background-color: #5c6884;
+		padding: 1rem 1rem 1rem 1rem;
+		align-items: center;
+	}
+	.header {
+		display: flex;
+		flex-direction: row;
+		justify-content: center;
+	}
+	.nav {
+		display: flex;
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+</style>
+

@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { Image } from "astro:assets";
+import ProfileImage from "assets/profile.jpeg"
+---
+
+<Layout pageTitle="About">
+    <div style="display: flex;gap: 1rem;">
+        <Image width="240" src={ProfileImage} alt=""/>
+        <p>In my free time I like to dabble in signal processing and graphics development. 
+            At work I'm usually working on web applications primarily in .NET and Node. I first started coding back in 2009 writing mods for Grand Theft Auto: San Andreas in C++ and have been hooked since then.
+            You can reach me on <a href="https://www.linkedin.com/in/emmanuel-herrera-477b92b7" target="blank">LinkedIn</a>
+        </p>
+    </div>
+</Layout>
