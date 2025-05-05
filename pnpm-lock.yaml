@@ -14,6 +14,9 @@ importers:
       '@astrojs/preact':
         specifier: ^4.0.9
         version: 4.0.9(@babel/core@7.26.10)(preact@10.26.5)
+      '@astropub/worker':
+        specifier: ^0.2.0
+        version: 0.2.0
       astro:
         specifier: ^5.7.4
         version: 5.7.4(rollup@4.40.0)(typescript@5.8.3)
@@ -58,6 +61,9 @@ packages:
   '@astrojs/telemetry@3.2.0':
     resolution: {integrity: sha512-wxhSKRfKugLwLlr4OFfcqovk+LIFtKwLyGPqMsv+9/ibqqnW3Gv7tBhtKEb0gAyUAC4G9BTVQeQahqnQAhd6IQ==}
     engines: {node: ^18.17.1 || ^20.3.0 || >=22.0.0}
+
+  '@astropub/worker@0.2.0':
+    resolution: {integrity: sha512-DkvD+H3N3n9XqRV66Jh3nYq0fPkfPwlbuOcKmLgSINms0z5VcHALVUmneceMJ1ni/MexkqffezWtGgKAiglYbw==}
 
   '@babel/code-frame@7.26.2':
     resolution: {integrity: sha512-RJlIHRueQgwWitWgF8OdFYGZX328Ax5BCemNGlqHfplnRT9ESi8JkFlvaVYbS+UubVY6dpv87Fs2u5M29iNFVQ==}
@@ -2058,6 +2064,8 @@ snapshots:
       which-pm-runs: 1.1.0
     transitivePeerDependencies:
       - supports-color
+
+  '@astropub/worker@0.2.0': {}
 
   '@babel/code-frame@7.26.2':
     dependencies:

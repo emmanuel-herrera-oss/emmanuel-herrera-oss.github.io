@@ -5,8 +5,10 @@ import preact from '@astrojs/preact';
 
 import mdx from '@astrojs/mdx';
 
+import worker from '@astropub/worker'
+
 // https://astro.build/config
 export default defineConfig({
-  Site: 'https://emmanuel-herrera-oss.github.io',
-  integrations: [preact(), mdx()]
+  site: 'https://emmanuel-herrera-oss.github.io',
+  integrations: [preact(), mdx(), worker()]
 });

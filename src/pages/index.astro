@@ -4,11 +4,17 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout>
-	<div class="blog-summary">
-			<a class="title" href="/lc/basic-calculator-i">Leetcode - 224. Basic Calculator (Go)</a>
-			<div>My solution for <a href="https://leetcode.com/problems/basic-calculator/description/" target="_blank">Basic Calculator</a> implemented in Go.</div>
-			<div class="published">April 26, 2025</div>
+	<div class="post-list">
+		<div class="blog-summary">
+			<a class="title" href="/color-quantization">Color Quantization using K-means clustering</a>
+			<div class="published">May 5, 2025</div>
 		</div>
+		<div class="blog-summary">
+				<a class="title" href="/lc/basic-calculator-i">Leetcode - 224. Basic Calculator (TypeScript)</a>
+				<div>My solution for <a href="https://leetcode.com/problems/basic-calculator/description/" target="_blank">Basic Calculator</a> implemented in TypeScript.</div>
+				<div class="published">April 26, 2025</div>
+		</div>
+	</div>
 </Layout>
 
 <style>
@@ -18,7 +24,7 @@ import Layout from '../layouts/Layout.astro';
 		display: flex;
 		flex-direction: column;
 		padding: 1rem 1rem 1rem 1rem;
-		align-self: flex-start;
+		/*align-self: flex-start;*/
 		height: auto;
 	}
 	.published {
@@ -28,5 +34,10 @@ import Layout from '../layouts/Layout.astro';
 	}
 	.title {
 		margin-bottom: 0.5rem;
+	}
+	.post-list {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
 	}
 </style>

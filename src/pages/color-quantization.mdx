@@ -1,0 +1,100 @@
+---
+export pageTitle: "Color Quantization"
+description: "Color Quantization using K-Means Clustering"
+pubDate: 2025-05-05
+---
+import "global.css"
+import Layout from 'layouts/Layout.astro';
+import { KMeansDemo } from 'components/KMeansDemo'
+import { ColorQuantizationDemo } from 'components/ColorQuantizationDemo'
+import ForestOriginal from 'assets/color-quantization/forest_og.png'
+import ForestWashed from 'assets/color-quantization/forest_8.png'
+import ForestDecent from 'assets/color-quantization/forest_8_2.png'
+import { Image } from 'astro:assets'
+
+<Layout>
+<div class="blog-post">
+# Color Quantization using K-Means Clustering
+I was reading through the [Game Engine Black Book](https://fabiensanglard.net/three_books_update/) the other day. There's 
+a mention there about how the art assets for Wolfenstein 3D were limited to a 256 color palette. This got me thinking about
+how I would go about reducing the number of colors in an image. My first thought was to use k-means clustering, and it
+seems to work ok. The result reminds me of the images I used to see in 
+[some Windows 98 games](https://www.myabandonware.com/game/nascar-racing-1999-edition-e0b) back in the day. 
+
+## How it works
+k-means clustering takes a set of vectors and tries to project them onto *k* representative vectors. There are some 
+nuances in deciding what constitutes a "representative" vector, and there are different approaches. For this project, I 
+followed Wikipedia's description of the [Standard Algorithm](https://en.wikipedia.org/wiki/K-means_clustering#Algorithms).
+
+1. Randomly pick *k* pixels from the image. These are our initial centroids
+2. Assign each pixel in the image to the centroid it's closest to (by Eucledian distance)
+3. Update each centroid to be the average value of the pixels assigned to it
+4. If the centroid changed, repeat steps 2-3. Otherwise, return the centroids with their assigned pixels. 
+
+Here's the core of the implementation I came up with
+<div class="code-block">
+```typescript
+for (let i = 0; i < iterationLimit; i++) {
+        iterationCount++
+        clusters = initClusters(numberOfClusters)
+        for (let j = 0; j < input.length; j++) {
+            const point = input[j]
+            let min = -1
+            let minIdx = -1
+            for (let k = 0; k < centroids.length; k++) {
+                const d = vectorDistance(point, centroids[k])
+                if (min == -1 || d < min) {
+                    min = d
+                    minIdx = k
+                }
+            }
+            clusters[minIdx].push(point)
+        }
+        const newCentroids = updateCentroids(clusters)
+        let allEqual = true
+        for (let i = 0; i < centroids.length; i++) {
+            if (newCentroids.findIndex(c => vectorEquals(c, centroids[i])) == -1) {
+                allEqual = false
+                break
+            }
+        }
+        if (allEqual) {
+            converged = true
+            break
+        }
+        centroids = newCentroids
+        notify(centroids, clusters, i, false, false)
+    }
+```
+</div>
+## Custer Initialization
+Something I noticed is that which clusters are randomly selected in the first step can have a significant impact on 
+how the result looks. For example, a picture of a forest might have a few really vibrant shades of green. If you're
+unlucky and the initial clusters don't pick up any of those shades, the output will tend to be more washed out than
+if you're lucky. This subject is touched on [here](https://en.wikipedia.org/wiki/K-means_clustering#Initialization_methods)
+
+Here's an example of this effect with k = 8. In the "lucky" image there's more green,
+and it more closely resembles the original vibe. 
+<div class="image-strip">
+    <div class="image-strip-figure">
+        <Image src={ForestOriginal} alt="" class="image-strip-image" />
+        <span class="image-strip-caption">Original</span>
+    </div>
+    <div class="image-strip-figure">
+        <Image src={ForestWashed} alt="" class="image-strip-image"/>
+        <span class="image-strip-caption">Unlucky</span>
+    </div>
+    <div class="image-strip-figure">
+        <Image src={ForestDecent} alt="" class="image-strip-image"/>
+        <span class="image-strip-caption">Lucky</span>
+    </div>
+</div>
+
+## Demo
+Here's a demo where you can upload a PNG image and see the quantized result. It updates the output every 10 
+iterations so you can see how the algorithm progresses. You can click on the "Redo" button to quantize the same image 
+with different initial random clusters. This runs entirely in your browser, so the image you select won't be saved anywhere.
+<ColorQuantizationDemo client:load/><br/>
+<a href="/">Home</a>
+</div>
+</Layout>

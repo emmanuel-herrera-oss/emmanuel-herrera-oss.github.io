@@ -10,4 +10,38 @@ a:visited {
 
 .blog-post {
     max-width: 90vw;
+    width: 100%;
+}
+
+.image-strip {
+    display: flex;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.image-strip-figure {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    border: thin #c0c0c0 solid;
+    padding: 0.5rem;
+}
+.image-strip-image {
+    width: 100%;
+    height: auto;
+}
+.image-strip-caption {
+    background-color: black;
+    color: white;
+}
+
+.code-block {
+    padding: 1rem 1rem 1rem 1rem;
+    border: 1px solid gray;
+    background-color: #24292e;
+}
+
+/* Overwrite Astro defaults */
+.nav-links {
+    flex-direction: row !important;
 }
