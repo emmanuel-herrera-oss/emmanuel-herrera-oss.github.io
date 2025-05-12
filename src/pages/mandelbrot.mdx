@@ -1,0 +1,73 @@
+---
+export pageTitle: "Mandelbrot with GLSL"
+description: "Draw a Mandelbrot fractal using GLSL"
+pubDate: 2025-05-07
+---
+import "global.css"
+import Layout from 'layouts/Layout.astro';
+
+import { MandelbrotDemo } from 'components/MandelbrotDemo'
+import { MandelbrotShaderDemo } from 'components/MandelbrotShaderDemo'
+
+
+<Layout>
+<div class="blog-post">
+# Mandelbrot Fractal using WebGL
+Drawing a Mandelbrot Fractal can be a lot simpler than the [wikipedia article](https://en.wikipedia.org/wiki/Mandelbrot_set#Basic_properties)
+would have you believe. It's essentially just a complex number calculation applied to every pixel on 
+the screen. Here's the specific procedure I implemented:
+
+For every pixel (x', y'):
+1. Initialize:
+    - x = (2.47 / screen_width) * x' - 2
+    - y = (2.24 / screen_height) * y' - 1.12
+    - z = 0 + 0**i**
+    - c = x + **i**y
+    - iterations = 0
+    - MaxIterations = 1000
+2. Set z equal to z<sup>2</sup> + c. 
+3. Repeat step 2 until  |z| > 4 or iterations > MaxIterations, 
+4. Set the color of pixel (x, y) based on the number of iterations
+    - If iterations >= MaxIterations, set the pixel to black
+    - Else set the pixel to rgb(sqrt(10 * iterations), sqrt(10 * iterations), sqrt(10 * iterations))
+
+Regarding #1, the constants 2.47, 2.24, 2, and 1.12 come from the [pseudocode](https://en.wikipedia.org/wiki/Mandelbrot_set#Computer_drawings)
+in the Wikipedia article. They provide a good view of the standard fractal image. From these starting values,
+it's possible to zoom and move the view around to see different features of the fractal. 
+
+Regarding #4, there are many ways to assign a color to a pixel based on the iteration count. I found that
+lower iteration counts were more common than high ones, and the square root function did a decent job of 
+assigning more dynamic range to those counts than wasting it on higher, infrequent counts. 
+
+Below is the result of the algorithm describe above. On my machine it takes about a second to render. 
+Although this isn't terrible, it's not great for an interactive experience. 
+<MandelbrotDemo client:load/>
+
+To speed things up, I rewrote the algorithm as a fragment shader. A fragment shader is essentially just a 
+function that is called for every pixel of every shape drawn on the screen and returns the color 
+that pixel should be...exactly what I needed. 
+The function runs on the GPU and is called many times in parallel, so it's much faster than the CPU 
+implementation. The high level steps I took to accomplish this are as follows: 
+
+1. Initialize WebGL
+    - Compile and Link vertex and fragment shader 
+    - Call other WebGL initialization functions
+2. Setup WebGL variables that we can use to communicate between the host JavaScript application and the 
+shader function. 
+    - Canvas Resolution
+    - Center Coordinate
+    - Zoom
+3. Draw shapes on the screen such that they cover the entire window. I did this by drawing 2 triangles with
+each triangle covering half of the screen. This step will cause the fragment shader to run and set the color
+of every pixel in the canvas. 
+4. Upon user input, update the WebGL variables from step 2 so that the view is updated. 
+    - On scroll wheel, update the Zoom variable. 
+    - On click, update the Center Coordinate variable
+
+Here's the final result. You can click around to center the view on your cursor, and zoom in/out using 
+the scroll wheel (pinch on mobile).
+<MandelbrotShaderDemo client:load/>
+
+
+</div>
+</Layout>
