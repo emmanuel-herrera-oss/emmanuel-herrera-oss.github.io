@@ -175,7 +175,7 @@ export function MandelbrotShaderDemo() {
             }
             else {
                 const diff = d - previousDistance.current
-                setZoom((z) => Math.max(z + (Math.exp(z * ZoomExponentialScaleFactor) * diff * 0.005), 1))
+                setZoom((z) => Math.max(z + (Math.exp(z * ZoomExponentialScaleFactor) * diff * 0.02), 1))
                 previousDistance.current = d
             }  
         }
