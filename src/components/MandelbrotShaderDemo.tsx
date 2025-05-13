@@ -167,9 +167,9 @@ export function MandelbrotShaderDemo() {
         const touches = evt.changedTouches;
         if(touches.length == 2) {
             const dx = touches[0].clientX - touches[1].clientX
-            const dy = touches[1].clientY - touches[1].clientY
+            const dy = touches[0].clientY - touches[1].clientY
             const d = Math.sqrt(dx * dx + dy * dy)
-            setZoom((z) => Math.max(z - (Math.exp(z * ZoomExponentialScaleFactor) * d), 1))
+            setZoom((z) => Math.max(z * d * 0.1, 1))
         }
         evt.preventDefault()
         return false
