@@ -149,9 +149,9 @@ export function MandelbrotShaderDemo() {
         setY0(prev => -(fractalHeight/canvas.height) * offsetY + prev)
     }
     // Update zoom based on wheel scroll, but don't scroll the page. 
-    function rezoom(e: any) {
-        e.preventDefault()
+    function scrollZoom(e: any) {
         setZoom((z) => Math.max(z - (Math.exp(z * ZoomExponentialScaleFactor) * e.deltaY), 1))
+        e.preventDefault()
         return false
     }
     // Reset to initial view
@@ -162,8 +162,22 @@ export function MandelbrotShaderDemo() {
         setMaxIterations(InitialMaxIterations)
     }
 
+    // Update zoom based on pinch on touch devices
+    function touchZoom(evt: TouchEvent) {
+        const touches = evt.changedTouches;
+        if(touches.length == 2) {
+            const dx = touches[0].clientX - touches[1].clientX
+            const dy = touches[1].clientY - touches[1].clientY
+            const d = Math.sqrt(dx * dx + dy * dy)
+            setZoom((z) => Math.max(z - (Math.exp(z * ZoomExponentialScaleFactor) * d), 1))
+        }
+        evt.preventDefault()
+        return false
+      }
+      
+
     return <div id="shader-container" style={{ width: '100%', maxWidth: MaxWidth }}>
-        <canvas id="shader-canvas" onClick={recenter} onWheel={rezoom}></canvas>
+        <canvas id="shader-canvas" onClick={recenter} onWheel={scrollZoom} onTouchMove={touchZoom}></canvas>
         Max Iterations:
         <input id="one-hundred" type="radio" value={100} checked={maxIterations == 100} onChange={() => setMaxIterations(100)}/>
         <label for="one-hundred">100</label>
