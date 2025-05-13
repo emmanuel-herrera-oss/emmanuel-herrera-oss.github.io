@@ -163,21 +163,32 @@ export function MandelbrotShaderDemo() {
     }
 
     // Update zoom based on pinch on touch devices
+    const previousDistance = useRef(-1)
     function touchZoom(evt: TouchEvent) {
         const touches = evt.changedTouches;
         if(touches.length == 2) {
             const dx = touches[0].clientX - touches[1].clientX
             const dy = touches[0].clientY - touches[1].clientY
             const d = Math.sqrt(dx * dx + dy * dy)
-            setZoom((z) => Math.max(z * d * 0.1, 1))
+            if(previousDistance.current == -1){
+                previousDistance.current = d
+            }
+            else {
+                const diff = d - previousDistance.current
+                setZoom((z) => Math.max(z - (Math.exp(z * ZoomExponentialScaleFactor) * diff), 1))
+                previousDistance.current = diff
+            }
         }
         evt.preventDefault()
         return false
       }
+      function touchEnd() {
+        previousDistance.current = -1
+      }
       
 
     return <div id="shader-container" style={{ width: '100%', maxWidth: MaxWidth }}>
-        <canvas id="shader-canvas" onClick={recenter} onWheel={scrollZoom} onTouchMove={touchZoom}></canvas>
+        <canvas id="shader-canvas" onClick={recenter} onWheel={scrollZoom} onTouchEnd={touchEnd} onTouchMove={touchZoom}></canvas>
         Max Iterations:
         <input id="one-hundred" type="radio" value={100} checked={maxIterations == 100} onChange={() => setMaxIterations(100)}/>
         <label for="one-hundred">100</label>
