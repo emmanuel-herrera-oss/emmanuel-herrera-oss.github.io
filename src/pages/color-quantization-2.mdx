@@ -1,0 +1,119 @@
+---
+export pageTitle: "Color Quantization 2"
+description: "Optimizing the k-means algorithm from last time"
+pubDate: 2025-05-26
+---
+import "global.css";
+import Layout from 'layouts/Layout.astro';
+
+<Layout>
+<div class="blog-post">
+# Color Quantization Revisited
+
+In a previous [article](../color-quantization), I implemented a color quantizer using HTML's Canvas element to process images from many 
+formats into pixel data that I could use. An effect of this decision is that the image was automatically rescaled to no larger than 480 
+pixels wide. This was nice for the demo since it ensuered that the processing time didn't become too long for large photos, but it made
+me wonder how long it would really take to process a high resolution image. 
+
+## Test Results
+The first thing I did was to write a standalone [Bun application](https://github.com/emmanuel-herrera-oss/color-quantization/tree/main/ts) 
+to process the image without rescaling. It's based on the demo code from the previous article, but doesn't make use of web workers since 
+there's no UI thread to worry about. To test its performance, I color-quantized a 3840x2564 image using k = 8, 16, 32, and 64. 
+Here are the results:
+
+|K  |Time (ms)|Iterations|ms per iteration|
+|---|---------|----------|----------------|
+|8  |6645     |14        |475             |
+|16 |15105    |23        |657             |
+|32 |32922    |27        |1219            |
+|64 |129412   |58        |2231            |
+
+Next, I reimplemented the same algorithm in [C++](https://github.com/emmanuel-herrera-oss/color-quantization/tree/main/cpp). Much faster!
+The time per iteration was always less than 25% for the C++ program vs the Bun program. Interestingly, the C++ program usually ran for 
+more iterations before converging, so the total time savings wasn't as big as the per-iteration time savings. I'm not sure why this is the case.
+At first I thought maybe it was related to me using 32 bit floats in the C++ program vs Bun us ing 64 bit floats, but this behavior persisted 
+even after changing all the floats to doubles.
+
+|K  |Time (ms)|Iterations|ms per iteration|
+|---|---------|----------|----------------|
+|8  |1442     |14        |103             |
+|16 |5718     |35        |163             |
+|32 |10657    |37        |288             |
+|64 |50040    |98        |510             |
+
+The last thing I wanted to try was to make this [multithreaded](https://github.com/emmanuel-herrera-oss/color-quantization/tree/main/cpp-mt) 
+These are my results running 8 threads on an 8 core AMD Ryzen 7 8700F. Definitely an improvement. For k=64 this version took only 10% of the time it
+took the Bun version. nice. 
+
+|K  |Time (ms)|Iterations|ms per iteration|
+|---|---------|----------|----------------|
+|8  |1118     |23        |49              |
+|16 |2799     |42        |67              |
+|32 |3797     |38        |100             |
+|64 |12170    |76        |160             |
+
+## Multithreading
+The core loop of this program iterates through every pixel in the image and assigns it to a cluster. My first attempt at making this program
+multithreaded was to take this loop and break it up into threads. This resulted in memory errors. What was happening is that I was using a
+std::vector to store the pixels for each cluster. Sometimes, multiple threads would append to the same vector at the same time and trigger a
+vector resize. To fix this, I added a mutex that was locked before each write to a vector, but this actually made the program super slow! Even
+slower than with a single thread.
+
+My next attempt was allocate an std::vector array in each thread and then have the threads store their results in this temporary vector instead
+of the one used in the main thread. Once the thread is done working, it obtains the lock and copies all the elements from its temporary vector
+to the main vector. This improved performane drastically, but it used more memory and I felt that there might be a better way. 
+
+In the end, I got rid of the vectors entirely and came up with a different way of storing the relationship between a pixel and a cluster. Specifically:
+
+1. Allocate an array of k Centroids. 
+2. Allocate an array of W x H ints. Element i of this array holds the index (0...k-1) of the centroid to which pixel i belongs. 
+
+By making these changes, I didn't have to use any locking or temporary storage, and I was able to get the best performance. Here's the final code that runs on each thread: 
+<div class="code-block">
+```cpp
+static void chunk(unsigned int thread_id, const QuantizeOptions& options, Centroid* centroids, int* clusters) {
+    while (true) {
+        if (finished) {
+            return;
+        }
+        if (!signals[thread_id]) {
+            continue;
+        }
+        int points_per_thread = options.image_len / options.thread_count + 1;
+        for (unsigned int point_idx = thread_id * points_per_thread; point_idx < (thread_id + 1) * points_per_thread; point_idx++)
+        {
+            if (point_idx >= options.image_len) {
+                break;
+            }
+            float min_distance = -1;
+            int min_idx = -1;
+            auto point = options.image + 4 * point_idx;
+            for (unsigned int centroid_idx = 0; centroid_idx < options.cluster_count; centroid_idx++)
+            {
+                auto distance = distance_from_centroid(centroids[centroid_idx], point);
+                if (min_idx < 0 || distance < min_distance)
+                {
+                    min_distance = distance;
+                    min_idx = centroid_idx;
+                }
+            }
+            clusters[point_idx] = min_idx;
+        }
+        signals[thread_id] = false;
+    }
+}
+```
+</div>
+## Final Thoughts
+Adding multithreading to an application is not something to take lightly. It might require you to completely change how you think about 
+your problem in order to come to an efficient solution. However, when you're done, you'll feel satisfied to see those expensive cores you
+paid for put to good use. 
+
+After this exercise, I've gained more appreciation for C#'s [Task Parallel Library (TPL)](https://learn.microsoft.com/en-us/dotnet/standard/parallel-programming/task-parallel-library-tpl). 
+I've had the opportunity to use Parallel.For and IEnumerable.AsParallel a few times at work to great effect. Now I realize that 
+there's a lot going on under the hood when I use TPL, and I'm glad that .NET is taking care of it for me 😌
+
+
+<a href="/">Home</a>
+</div>
+</Layout>
