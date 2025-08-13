@@ -14,7 +14,10 @@
     "@astropub/worker": "^0.2.0",
     "astro": "^5.7.4",
     "fsevents": "^2.3.3",
+    "katex": "^0.16.22",
     "preact": "^10.26.5",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
     "sharp": "^0.34.1"
   }
 }
