@@ -189,6 +189,7 @@ export function MandelbrotShaderDemo() {
 
     return <div id="shader-container" style={{ width: '100%', maxWidth: MaxWidth }}>
         <canvas id="shader-canvas" onClick={recenter} onWheel={scrollZoom} onTouchEnd={touchEnd} onTouchMove={touchZoom}></canvas>
+        <p>X: {x0.toFixed(3)} Y: {y0.toFixed(3)}</p>
         Max Iterations:
         <input id="one-hundred" type="radio" value={100} checked={maxIterations == 100} onChange={() => setMaxIterations(100)}/>
         <label for="one-hundred">100</label>
