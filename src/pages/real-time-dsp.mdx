@@ -1,29 +1,34 @@
 ---
-export pageTitle: "Real-time FM Demdoulator for an SDR device"
-description: "Real-time FM Demodulator for an SDR device"
+export pageTitle: "Real-time FM Demodulator for an SDR device"
+export description: "Real-time FM Demodulator for an SDR device"
 pubDate: 2025-08-11
 ---
-import "global.css"
-import Layout from 'layouts/Layout.astro';
-import BlockDiagram from 'assets/real-time-fm-demod/gnuradio-block-diagram.png'
-import SequenceDiagram from 'assets/real-time-fm-demod/sequence_diagram.png'
-import OverlapAdd from 'assets/real-time-fm-demod/overlap-add.jpeg'
-import { Image } from 'astro:assets'
 
-<Layout>
+import "global.css";
+import Layout from "layouts/Layout.astro";
+import BlockDiagram from "assets/real-time-fm-demod/gnuradio-block-diagram.png";
+import SequenceDiagram from "assets/real-time-fm-demod/sequence_diagram.png";
+import OverlapAdd from "assets/real-time-fm-demod/overlap-add.jpeg";
+import { Image } from "astro:assets";
+
+<Layout pageTitle="Real-time FM Demodulator for an SDR Device">
 <div class="blog-post">
 # Introduction
 I've been using gnuradio with my SDR device for a while now. While it's a really neat tool, there's nothing like implementing something yourself in code to fully understand what's going on under the hood, so I wrote this FM broadcast receiver in C.
 
 # Implementation
+
 ## Design & Testing
+
 First, I came up with a design and tested it in gnuradio to make sure it would work before implementing it in code. Each of these blocks has a corresponding C implementation that I will discuss below.
+
 <div class="image-strip-figure">
-        <Image src={BlockDiagram} alt="" class="image-strip-image" />
-        <span class="image-strip-caption">FM Demodulator tested in gnuradio</span>
+  <Image src={BlockDiagram} alt="" class="image-strip-image" />
+  <span class="image-strip-caption">FM Demodulator tested in gnuradio</span>
 </div>
 
 ## Sampling
+
 Sampling is done using <a href="https://github.com/steve-m/librtlsdr">librtlsdr</a>. Setup is very simple: just give it the sampling rate and center frequency, and it does the rest. An extra scaling step from the default 0-255 range to -1.0 to 1.0 range was required for these samples to be useful with the demodulation method I chose.
 
 <div class="code-block">
@@ -36,11 +41,12 @@ void read_samples() {
 
 // Scale IQ samples to range -1.0 to 1.0
 void scale() {
-    for(int i = 0;i < 2 * SDR_BUFFER_SIZE;i++) {
-        scaled_signal[i] = ((double)raw_signal[i] - 127.5) / 127.5;
-    }
+for(int i = 0;i < 2 \* SDR_BUFFER_SIZE;i++) {
+scaled_signal[i] = ((double)raw_signal[i] - 127.5) / 127.5;
 }
-```
+}
+
+````
 </div>
 
 
@@ -83,17 +89,20 @@ void polar_interpolator() {
         polar_discriminator_output[i / 2] = arg * (1.0 * SDR_SAMPLE_RATE / (2.0 * M_PI * FM_DEVIATION));
     }
 }
-```
+````
+
 </div>
 
 ## Filtering
 
 I used <a href="http://t-filter.engineerjs.com/" target="_blank">T-Filter</a> to generate linear-phase FIR filter coefficients. The actual filtering process was implemented as a direct convolution:
+
 $$
 y[n] = \sum_{k=-\infty}^{\infty}f[n-k]h[k]
 $$
 
 After accounting for the fact that the filters are causal and finite length, the code implementation looked like this:
+
 <div class="code-block">
 ```c
 for(int n = 0;n < output_length;n++) {
@@ -118,8 +127,10 @@ When processing data in real-time, it's necessary to process it in chunks. In my
 Suppose you're processing L samples at a time and your filter length is P. The output of the convolution will be L + P - 1 samples long. Take the first L samples of the result and output them as usual. Store the remaining P - 1 output samples in another buffer. These correspond to future outputs that you haven't sent to the speakers yet. In the future, when you get the next L samples, add the first P - 1 output samples to the P - 1 samples you stored in the previous round to get the total and correct output for that time range.
 
 <div class="image-strip-figure" style="width: 480px;">
-        <Image src={OverlapAdd} alt="" class="image-strip-image" />
-        <span class="image-strip-caption">Overlap-add diagram (Oppenheim, Schafer 1999)</span>
+  <Image src={OverlapAdd} alt="" class="image-strip-image" />
+  <span class="image-strip-caption">
+    Overlap-add diagram (Oppenheim, Schafer 1999)
+  </span>
 </div>
 
 Final code for the audio filter below. I've omitted the FM filter since it's the same thing but longer because it works on complex instead of real samples.
@@ -159,7 +170,6 @@ void audio_filter() {
 ```
 </div>
 
-
 ## Audio output
 
 I used <a href="https://gitlab.com/bztsrc/nanoalsa" target="_blank">nanoalsa</a> to play my final audio samples. It's very easy to setup and get going.
@@ -172,11 +182,12 @@ One issue I ran into regarding sound output was that I had to constantly send sa
 This approach ensures that there's always new sound data available and that samples are constantly being collected and processed.
 
 <div class="image-strip-figure">
-        <Image src={SequenceDiagram} alt="" class="image-strip-image" />
-        <span class="image-strip-caption">Sequence Diagram</span>
+  <Image src={SequenceDiagram} alt="" class="image-strip-image" />
+  <span class="image-strip-caption">Sequence Diagram</span>
 </div>
 
 ## Final Result
+
 In the end, I had a console program that lets you tune different stations as well as enable/disable the different filters and overlap-add method to easily hear what impact each piece has on the output. If you're interested, the full source code is available on <a href="https://github.com/emmanuel-herrera-oss/fmsdr" target="_blank">Github</a>
 
 <video width="270" height="480" controls>
