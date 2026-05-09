@@ -1,0 +1,178 @@
+---
+export pageTitle: "FM Radio using QT"
+description: "FM Radio using QT"
+pubDate: 2026-05-05
+---
+import "global.css"
+import Layout from 'layouts/Layout.astro';
+import FmRadioUi from 'assets/fm-radio/ui.png'
+import { Image } from 'astro:assets'
+
+<Layout>
+<div class="blog-post">
+# Introduction
+Improving on the FM SDR from the last post by adding a UI and some more functionality.
+
+# UI
+I implemented the UI using QT Quick. Here are a few things I enjoyed about using QT Quick:
+
+- It was a really enjoyable experience being able to quickly iterate on the design using QML - especially since AI tools are pretty good at generating QML when given
+a description of what the UI should look like. For example, I asked ChatGPT to give me QML for a semi-transparent rubber button that glows green when active, and what it gave me was pretty workable.
+
+- Connecting the UI to C++ Code was really easy via the signals & slots system.
+
+- Maintaining a separation between QT and non QT was also straightforward. I wanted my core radio code to be completely independent of QT, and this was easy to achieve by adding a 
+  small C++ class to act as a bridge between QT signals and making calls to the radio code.
+
+- The IDE works well and is easy to set up. As long as the cmake files have the correct configuration, autocomplete and other IDE features work with minimal configuration. 
+
+- Everything is reactive. When tuning with the knob, preset buttons will light up when their corresponding station is manually tuned. Conversely, when a preset is selected, the tuning knob will
+  move to the correct position for that station.
+
+Here's what the final result looks like:
+<div style="display: flex;justify-content: center;">
+<Image src={FmRadioUi} alt="" class="image-strip-image" style="width: 480px;" />
+</div>
+
+## Features
+
+### Scan
+My favorite feature to implement was a Scan button. It automatically tunes to the next station that has a good signal, waits a few seconds, and then continues to the next station until manually stopped - just like
+what you would find in many car radios. I achieved this by applying a high-pass filter (~20KHz) to the audio signal and calculating its average energy over a fixed period (250ms e.g. 12000 samples).
+Stations with low SNR will tend to have more energy in the higher frequency range than stations with a good SNR, so a simple comparison can be made against a threshold to determine
+if the station is good or not. I found a threshold that worked well by experimenting with different values until I got a good result. 
+
+<div class="code-block">
+```cpp
+void Seek::seek(std::stop_token st) {
+    while(!st.stop_requested()) {
+        current_station += 200000;
+        if(current_station > 107900000) {
+            current_station = 87900000;
+        }
+        radio->mute();
+        radio->tune(current_station);
+        onStationChanged(current_station);
+        auto powerFuture = radio->get_noise_power();
+        powerFuture.wait();
+        auto power = powerFuture.get();
+        if(power < Constants::seek_noise_power_threshold) {
+            radio->unmute();
+            std::this_thread::sleep_for(std::chrono::seconds(Constants::seek_listen_seconds));
+        }
+    }
+    radio->unmute();
+}
+
+void Seek::start(int starting_station, std::function<void(int)> onStationChanged) {
+    this->current_station = starting_station;
+    this->onStationChanged = onStationChanged;
+    worker = std::jthread(std::bind_front(&Seek::seek, this));
+}
+void Seek::stop() {
+    worker.request_stop();
+}
+```
+</div>
+Then in the main DSP loop:
+<div class="code-block">
+```cpp
+// Calculate noise power if get_noise_power was called
+if(noise_power_sample_count < Constants::noise_power_sample_count) {
+  for(int i = 0;i < audio_samples.size();i++) {
+    noise_filter.in_real()[i] = audio_filter.out_real()[i];
+  }
+  noise_filter.apply_real();
+  for(auto sample : noise_filter.out_real()){
+    average_noise_power += ((sample * sample) - average_noise_power) / (++noise_power_sample_count);
+    if(noise_power_sample_count == Constants::noise_power_sample_count) {
+      noise_power_promise.set_value(average_noise_power);
+    }
+  }
+}
+```
+</div>
+
+### Presets
+Holding a preset button will store the current station, and pressing a preset button will tune the saved station. These persist across application starts.
+
+### Persistence
+Apart from presets, the entire radio state is saved when the application is closed. So the next time it's opened, it will start at the same volume and station. For this I used a library named 
+<a href="https://github.com/brofield/simpleini">simpleini</a>. It was really nice not having to manually parse config files and such. 
+
+## Performance Improvements
+There were a couple of changes I made that made a big impact on performance. CPU usage went down from ~45% to ~5%. 
+
+1. When downsampling, only compute output values for samples that won't be discarded instead of calculating all output samples and then discarding. 
+<div class="code-block">
+```cpp
+void FirFilter::apply_cplx()
+{
+    for(int n = 0;n < output_length;n += m_decimation_factor){
+        int h_idx = 0, x_idx = n;
+        float acc_real = 0, acc_imag = 0;
+        while(x_idx >= 0 && h_idx < m_filter_length){
+            if(x_idx < m_block_length){
+                acc_real += m_in_real[x_idx] * h[h_idx];
+                acc_imag += m_in_imag[x_idx] * h[h_idx];
+            }
+            x_idx--;
+            h_idx++;
+        }
+        if(n < m_filter_length - 1) {
+            m_out_real[n / m_decimation_factor] = acc_real + m_tail_real[n];
+            m_out_imag[n / m_decimation_factor] = acc_imag + m_tail_imag[n];
+        }
+        else if(n < m_block_length) {
+            m_out_real[n / m_decimation_factor] = acc_real;
+            m_out_imag[n / m_decimation_factor] = acc_imag;
+        }
+        else {
+            m_tail_real[n - m_block_length] = acc_real;
+            m_tail_imag[n - m_block_length] = acc_imag;
+        }
+    }
+}
+
+void FirFilter::apply_real() {
+    for(int n = 0;n < output_length;n += m_decimation_factor){
+        int h_idx = 0, x_idx = n;
+        float acc = 0;
+        while(x_idx >= 0 && h_idx < m_filter_length){
+            if(x_idx < m_block_length){
+                acc += m_in_real[x_idx] * h[h_idx];
+            }
+            x_idx--;
+            h_idx++;
+        }
+        if(n < m_filter_length - 1) {
+            m_out_real[n / m_decimation_factor] = acc + m_tail_real[n];
+        }
+        else if(n < m_block_length) {
+            m_out_real[n / m_decimation_factor] = acc;
+        }
+        else {
+            m_tail_real[n - m_block_length] = acc;
+        }
+    }
+}
+```
+</div>
+2. Downsample by 8x then 4x instead of doing everything at the SDR sample rate and then downsampling directly to the audio rate. 
+<div class="code-block">
+```cpp
+fm_filter(Filters::fm_filter, Constants::radio_buffer_size, Constants::fm_decimation_factor),
+    audio_filter(Filters::audio_filter, Constants::radio_buffer_size / Constants::fm_decimation_factor, Constants::audio_decimation_factor / Constants::fm_decimation_factor),
+    noise_filter(Filters::noise_filter, Constants::audio_buffer_size, 1)
+```
+</div>
+
+
+## Final Result
+Here's a video of the final result. The full source code is available on <a href="https://github.com/emmanuel-herrera-oss/fm-radio" target="_blank">Github</a>
+
+<video width="450" height="243" controls>
+    <source src="/fm-radio/demo.webm" type="video/webm"/>
+</video>
+</div>
+</Layout>
