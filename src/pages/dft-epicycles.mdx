@@ -1,0 +1,48 @@
+---
+export pageTitle: "Drawing Shapes using the Fourier Transform"
+description: "Drawing Shapes using the Fourier Transform"
+pubDate: 2026-06-25
+---
+import "global.css"
+import Layout from 'layouts/Layout.astro';
+import { EpicyclesDemo } from 'components/EpicyclesDemo'
+
+<Layout pageTitle="Drawing Shapes using the Fourier Transform">
+<div class="blog-post">
+Draw a shape below to see it drawn as the sum of Fourier coefficients on a complex plane. Adjust the slider to reduce the number of coefficients that are used.
+<EpicyclesDemo client:load/>
+# How it works
+The image is a series of $N$ $(x, y)$ coordinates. If we consider the coordinates to be complex values, we can take their Discrete Fourier Transform to yield a series of $N$ 
+complex-valued Fourier coefficients $X[k]$. To recover the original image from the coefficients, we can use the inverse DFT: $x[n] = \frac{1}{N} \sum_{k=0}^{N-1} X[k] e^{i \frac{2\pi}{N} kn}$
+
+Let's write out the sum for n = 0, 1, and 2 and N = 3.  
+
+$$
+x[0] = X[0]e^{i \frac{2\pi}{3}(0)(0)} + X[1]e^{i \frac{2\pi}{3}(1)(0)} + X[2]e^{i \frac{2\pi}{3}(2)(0)}\\
+x[1] = X[0]e^{i \frac{2\pi}{3}(0)(1)} + X[1]e^{i \frac{2\pi}{3}(1)(1)} + X[2]e^{i \frac{2\pi}{3}(2)(1)}\\
+x[2] = X[0]e^{i \frac{2\pi}{3}(0)(2)} + X[1]e^{i \frac{2\pi}{3}(1)(2)} + X[2]e^{i \frac{2\pi}{3}(2)(2)}\\
+$$
+
+Each X[k] is a vector in the complex plane. Multiplication of a complex number by a complex exponential $e^{i\theta}$ geometrically rotates the vector counterclockwise by $\theta$. By keeping $k$ fixed and observing how the argument to its exponential evolves with increasing $n$ we can get an idea of what's happening: For every unit increase in $n$, $X[0]$ will not rotate because the argument to its exponential will always be zero. $X[1]$ will rotate by $\frac{2\pi}{3}$, and $X[2]$ will rotate by $\frac{4\pi}{3}$ <span>These values can be considered the rotational velocity of the vectors. If you look at the animation, you can see that each circle is indeed rotating at a fixed rate. Circles spinning faster correspond to higher frequency content. Large circles indicate that more of the signal's frequency content lies in that circle's frequency range.</span>
+
+
+## Summary
+The procedure to get the animation above is as follows:
+
+1. Collect x, y coordinates for the drawing
+2. Treat each x, y pair as a complex number and compute the DFT coefficients. 
+3. For every n in 0...N-1
+	1. Calculate k complex numbers $X[k]e^{i \frac{2\pi}{N} kn}$.
+	2. Sort the k complex numbers by their magnitude descending. 
+	3. Take the value from the slider and call it h. This is how many of the k complex numbers will be used to redraw the shape.
+	4. Draw out the addition of the h complex numbers as vectors in the complex plane. i.e. draw them head-to-tail.
+	5. When the last vector is drawn, plot the estimated value of y[n] based on h vectors. 
+
+
+## Notes
+Notice that for a lot of shapes, h can be much lower than N and still result in an acceptable redrawing of the original image. This works because when we order by vectors by their magnitude descending and take the first h, those are the h vectors that contribute most to the signal's shape. Something like this can be used for compression - instead of sharing all N points of a signal, you might share N / 2 points and the other person would be able to recreate an acceptable version of your signal. 
+
+Another thing to note is that in the animation, I'm skipping the first circle since that one doesn't spin and isn't very interesting. All it does is offset the image from being 
+centered about the origin to being centered about the center of the canvas - (320, 240) in this case. 
+</div>
+</Layout>
