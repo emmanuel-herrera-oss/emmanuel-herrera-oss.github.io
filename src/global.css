@@ -82,3 +82,8 @@ table tbody tr:nth-child(odd) {
 table tbody tr:hover {
   background-color: #f1f7ff;
 }
+
+canvas{
+	touch-action: none;
+	width: min(640px, 90vw);
+}

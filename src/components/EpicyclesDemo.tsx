@@ -22,7 +22,7 @@ export function EpicyclesDemo() {
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 		ctx.strokeStyle = "black";
 	}
-	const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>): void => {
+	const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>): void => {
 		const canvas = e.currentTarget;
 
 		const ctx = canvas.getContext('2d');
@@ -34,7 +34,7 @@ export function EpicyclesDemo() {
 		ctx.moveTo(x, y);
 		points.current.push(new Complex(x, y));
 	};
-	const draw = (e: React.MouseEvent<HTMLCanvasElement>): void => {
+	const draw = (e: React.PointerEvent<HTMLCanvasElement>): void => {
 		if (!isDrawing) return;
 
 		const canvas = e.currentTarget;
@@ -47,7 +47,7 @@ export function EpicyclesDemo() {
 		ctx.stroke();
 		points.current.push(new Complex(x, y));
 	};
-	const stopDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+	const stopDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
 		setIsDrawing(false);
 		coefficients.current = dft(points.current);
 		desiredEstimateSizeRef.current = points.current.length;
@@ -144,14 +144,14 @@ export function EpicyclesDemo() {
 		n.current = 0;
 	}
 
-	return <div style={{ width: '640px', display: 'flex', flexDirection: 'column' }}>
+	return <div style={{ width: '640px', display: 'flex', flexDirection: 'column', maxWidth: '90vw' }}>
 		<canvas
 			ref={canvasRef}
 			width="640"
 			height="480"
-			onMouseDown={startDrawing}
-			onMouseUp={stopDrawing}
-			onMouseMove={draw}
+			onPointerDown={startDrawing}
+			onPointerUp={stopDrawing}
+			onPointerMove={draw}
 			style={{ border: '3px solid black', margin: '0.5rem 0 0.5rem 0' }}>Your browser does not support the HTML canvas tag.</canvas>
 		<label for="count">Estimate size: {desiredEstimateSize - 1}/{points.current.length - 1}</label>
 		<input type="range" min={2} max={points.current.length} step={1} value={desiredEstimateSizeRef.current} onInput={(e) => changeEstimateSize(Number(e.currentTarget.value))} />
@@ -159,12 +159,18 @@ export function EpicyclesDemo() {
 	</div>
 }
 
-const getCoordinates = (canvas: HTMLCanvasElement, e: React.MouseEvent<HTMLCanvasElement>) => {
+const getCoordinates = (canvas: HTMLCanvasElement, e: React.PointerEvent<HTMLCanvasElement>) => {
 	const rect = canvas.getBoundingClientRect();
-	return {
-		x: e.clientX - rect.left,
-		y: e.clientY - rect.top
-	};
+  
+  // Calculate raw click position relative to the element box
+  const relativeX = e.clientX - rect.left;
+  const relativeY = e.clientY - rect.top;
+
+  // Scale the coordinates to match the internal drawing buffer
+  return {
+    x: relativeX * (canvas.width / rect.width),
+    y: relativeY * (canvas.height / rect.height)
+  };
 }
 
 class Complex {
