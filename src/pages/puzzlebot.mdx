@@ -1,0 +1,123 @@
+---
+export pageTitle: "Puzzlebot"
+description: "Puzzle Pirates bot using Monte Carlo"
+pubDate: 2027-09-07
+---
+import "global.css"
+import Layout from 'layouts/Layout.astro';
+
+<Layout pageTitle="Puzzlebot">
+<div class="blog-post">
+# Introduction
+<video width="640" height="346" controls>
+    <source src="/puzzlebot/demo.mp4" type="video/webm"/>
+</video>
+
+Puzzle Pirates is a really fun multiplayer game that combines a wide variety of puzzle games with MMO elements. One of the puzzles is called "Bilge" which is crucial for keeping your ship afloat while searching for treasure. The game board consists of a 6x12 grid of pieces. The objective is to swap 2 pieces at a time horizontally to make groups of 3 or more matching pieces. The more pieces that are matched in a single move, the better. As you progress, the difficulty is increased by adding different types of pieces. My goal was to create a bot that could play this game automatically while achieving the "Incredible" rating (denoted by the golden color of the bigle pump on the bottom right). Here's how I did it. 
+
+## Basic Algorithm
+
+For each possible move:
+  1. Make the move
+	2. Find groups of 3 or more matching pieces in the same row or column. The score of this move is the number of pieces in the groups.
+	3. Remove from the board all pieces that were part of the match group. 
+	4. Fill empty spaces on the board with remaining pieces from the bottom-up. 
+	5. Repeat steps 2-4 until there are no more matches. 
+
+This was enough to get the "Incredible" rating at the easiest difficulty, but once the difficulty increases from 5 piece types to 6, it performs terribly. 
+
+## Improved Algorithm
+
+Instead of just choosing the move with the best score for the current turn, the improved algorithm tries to predict if the current move can lead to a high-scoring move in the next turn. It does this by performing what's known as a Monte Carlo simulation. It works like this: 
+
+For each possible move:
+  1. Determine the Current Score using the basic algorithm described above 
+	2. Fill remaining empty spaces with random pieces
+	3. Determine the new best move using the basic algorithm. 
+	4. Restore the board to the state it had after step 1. 
+	5. Repeat steps 2-4 100 times
+	6. Predicted Score = the average score over the 100 simulations 
+	7. Return the move that has the best Current Score + Predicted Score
+
+This worked surprisingly well for how simple it is. It was able to reliably achieve the best rating even with the increased difficulty. It was noticeably slower though, so use this method with caution. 
+
+## Wayland Woes
+
+My previous experience with writing this type of software was in Windows land. There, it is very easy to get a window screenshot or simulate keyboard/mouse input using the Win32 library. For about 2 years now I've been using Linux. I was surprised by how difficult basic functionality like taking a screenshot or simulating mouse input could be. My distribution, Fedora KDE, comes with Wayland which does not allow this functionality due to security concerns. There are a few ways around it, but the method I chose was to use the <a href="https://flatpak.github.io/xdg-desktop-portal/docs/api-reference.html">XDG Desktop Portal</a>. These are a set of methods that can be called via something called "dbus" and provide the functionality I need after prompting for consent using methods built into the operating system. Although this worked, it was pretty gnarly. If you know of any better approaches let me know! 
+
+Here is a generic wrapper over the XDG interface that can be used to easily call XDG functions and get their return values. 
+
+<div class="code-block">
+```cpp
+/**
+   * @brief Makes a blocking call to XDG portal. Returns a map of return values
+   * from the call (see XDG Portal docs)
+   */
+  template <typename... XdgArgs>
+  XdgPortalResponse CallPortal(std::string interface_name,
+                               std::string method_name,
+                               bool wait_for_return_value,
+                               XdgArgs&&... xdg_args) const {
+    auto&& options = GetArg<std::map<std::string, sdbus::Variant>>(xdg_args...);
+
+    auto outboundProxy = sdbus::createProxy(
+        *connection_, sdbus::ServiceName{"org.freedesktop.portal.Desktop"},
+        sdbus::ObjectPath{"/org/freedesktop/portal/desktop"});
+    if (wait_for_return_value) {
+      auto handle_token = RandomHandle(16);
+      std::string responseObjectPath =
+          std::format("/org/freedesktop/portal/desktop/request/{}/{}",
+                      outboundProxy->getConnection().getUniqueName().substr(1),
+                      handle_token);
+      options["handle_token"] = sdbus::Variant{handle_token};
+      std::replace(responseObjectPath.begin(), responseObjectPath.end(), '.',
+                   '_');
+      auto inboundProxy = sdbus::createProxy(
+          outboundProxy->getConnection(),
+          sdbus::ServiceName{"org.freedesktop.portal.Desktop"},
+          sdbus::ObjectPath{responseObjectPath});
+      std::promise<XdgPortalResponse> promise;
+      inboundProxy->uponSignal("Response")
+          .onInterface("org.freedesktop.portal.Request")
+          .call([&promise](uint32_t status,
+                           std::map<std::string, sdbus::Variant> result) {
+            promise.set_value({.status = status, .result = result});
+          });
+      outboundProxy->callMethod(method_name)
+          .onInterface(interface_name)
+          .withArguments(std::forward<XdgArgs>(xdg_args)...);
+      auto result = promise.get_future().get();
+      return result;
+    } else {
+      outboundProxy->callMethod(method_name)
+          .onInterface(interface_name)
+          .withArguments(std::forward<XdgArgs>(xdg_args)...);
+      return {.status = 0, .result = std::map<std::string, sdbus::Variant>{}};
+    }
+  }
+```
+</div>
+Example usage for simulating a mouse click: 
+
+<div class="code-block">
+```cpp
+void PortalClient::Click(double x, double y) const {
+  CallPortal(
+      "org.freedesktop.portal.RemoteDesktop", "NotifyPointerMotionAbsolute",
+      false, sdbus::ObjectPath{remote_desktop_session_id_},
+      std::map<std::string, sdbus::Variant>{}, screen_cast_session_id_, x, y);
+  CallPortal("org.freedesktop.portal.RemoteDesktop", "NotifyPointerButton",
+             false, sdbus::ObjectPath{remote_desktop_session_id_},
+             std::map<std::string, sdbus::Variant>{}, (int32_t)272,
+             (uint32_t)1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  CallPortal("org.freedesktop.portal.RemoteDesktop", "NotifyPointerButton",
+             false, sdbus::ObjectPath{remote_desktop_session_id_},
+             std::map<std::string, sdbus::Variant>{}, (int32_t)272,
+             (uint32_t)0);
+}
+```
+</div>
+<a href="https://github.com/emmanuel-herrera-oss/bilge-bot/tree/main" target="_blank">Full source</a>
+</div>
+</Layout>
